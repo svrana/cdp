@@ -4,11 +4,11 @@
 #
 # The format of CDP_DIR_SPEC is path:max-depth. path is the full path of the
 # destination and max-depth is the number of directories under that path to
-# search for the directory target specified by the user. For example,
-# /home/shaw/Projects:1 would allow a match on any subdirectory of Projects,
-# but not any sub-subdirectory, so 'foo' /home/shaw/Projects/foo but not
-# /home/shaw/Projects/bar/foo.
+# search for the directory target specified by the user.
 #
+# For example, a CDP_DIR_SPEC of ~/Projects:1 would allow a match on any
+# subdirectory of Projects, but not any sub-subdirectory, so 'foo'
+# ~/Projects/foo but not /home/shaw/Projects/bar/foo.
 function cdp() {
     local project="$1"
 
