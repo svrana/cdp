@@ -33,9 +33,9 @@ function cdp() {
         local spec
         IFS=':' read -r -a spec <<< "$dirspec"
         path="${spec[0]}"
-        depth="${spec[1]:-0}"
+        depth="${spec[1]:-1}"
 
-        dir="$(fd --max-depth "$depth" "$project_root" "$path" | head -n1 )"
+        dir="$(fd --max-depth "$depth" "$project_root" "$path" | head -n1)"
         if [ -n "$dir" ]; then
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
