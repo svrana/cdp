@@ -17,6 +17,10 @@ function cdp() {
         return 1
     fi
 
+    if ! command -v fd > /dev/null 2>&1 ; then
+        echo 'cdp requires fd to run, see https://github.com/sharkdp/fd'
+    fi
+
     if [ -z "$project" ]; then
         if [ -n "${!CDP_DEFAULT_VAR}" ]; then
             cd "${!CDP_DEFAULT_VAR}"
