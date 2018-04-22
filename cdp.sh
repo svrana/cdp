@@ -39,7 +39,7 @@ function cdp() {
         path="${spec[0]}"
         depth="${spec[1]:-1}"
 
-        dir="$(fd --max-depth "$depth" "$project_root" "$path" | head -n1)"
+        dir="$(fd -t d --max-depth "$depth" "$project_root" "$path" | head -n1)"
         if [ -n "$dir" ]; then
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
@@ -50,5 +50,6 @@ function cdp() {
             return 0
         fi
     done
+    echo "No directory found for '$project'"
     return 1
 }
