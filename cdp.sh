@@ -36,16 +36,23 @@ function cdp() {
     for dirspec in "${dirspecs[@]}" ; do
         local spec
         IFS=':' read -r -a spec <<< "$dirspec"
-        path="${spec[0]}"
-        depth="${spec[1]:-1}"
+        local path="${spec[0]}"
+        local depth="${spec[1]:-1}"
+        local dirs
+        local num_dirs
 
         dirs="$(fd -t d --max-depth "$depth" "$project_root" "$path")"
+        num_dirs=$(echo "$dirs" | wc -l)
         if [ -n "$dirs" ]; then
-            dirs_depth=$(_get_dir_depth "$dirs")
-             # shallowest directory first
-            dir_depth=$(echo "$dirs_depth" | sort -n | head -n1)
-            # discard depth and the space afterwards
-            dir=${dir_depth#* }
+            if [ "$num_dirs" -gt "1" ]; then
+                dirs_depth=$(_get_dir_depth "$dirs")
+                # shallowest directory first
+                dir_depth=$(echo "$dirs_depth" | sort -n | head -n1)
+                # discard depth and the space afterwards
+                dir=${dir_depth#* }
+            else
+                dir=$dirs
+            fi
         fi
 
         if [ -n "$dir" ]; then
