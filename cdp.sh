@@ -39,7 +39,15 @@ function cdp() {
         path="${spec[0]}"
         depth="${spec[1]:-1}"
 
-        dir="$(fd -t d --max-depth "$depth" "$project_root" "$path" | head -n1)"
+        dirs="$(fd -t d --max-depth "$depth" "$project_root" "$path")"
+        if [ -n "$dirs" ]; then
+            dirs_depth=$(_get_dir_depth "$dirs")
+             # shallowest directory first
+            dir_depth=$(echo "$dirs_depth" | sort -n | head -n1)
+            # discard depth and the space afterwards
+            dir=${dir_depth#* }
+        fi
+
         if [ -n "$dir" ]; then
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
@@ -52,4 +60,13 @@ function cdp() {
     done
     echo "No directory found for '$project'"
     return 1
+}
+
+function _get_dir_depth() {
+    local dirs=$1
+    for dir in $dirs ; do
+        count=$(echo "$dir" | grep -o '/' | wc -l)
+        echo "$count $dir"
+    done
+    return 0
 }
