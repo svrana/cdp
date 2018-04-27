@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 
-cdp_log=0
+function _log() {
+    local cdp_log=0
 
-# Search for directory specified in $CDP_DIR_SPEC directories.
-#
-# The format of CDP_DIR_SPEC is path:max-depth. path is the full path of the
-# destination and max-depth is the number of directories under that path to
-# search for the directory target specified by the user.
-#
-# For example, a CDP_DIR_SPEC of ~/Projects:1 would allow a match on any
-# subdirectory of Projects, but not any sub-subdirectory, so 'foo'
-# ~/Projects/foo but not /home/shaw/Projects/bar/foo.
+    if [ "$cdp_log" -eq 1 ]; then
+        >&2 echo "$@"
+    fi
+}
+
 function cdp() {
     local project="$1"
     local dir=""
@@ -33,7 +30,7 @@ function cdp() {
         return 1
     fi
 
-    # Looping through the whole process for each directory hop instead of just
+    # TODO: Loop through the whole process for each directory hop instead of just
     # doing it for the first directory, i.e., fuzzy match all the way down
     local project_root="${project%%/*}"
 
@@ -51,23 +48,24 @@ function cdp() {
         num_dirs=$(echo "$dirs" | wc -l)
         if [ -n "$dirs" ]; then
             if [ "$num_dirs" -gt "1" ]; then
-                exact_match=$(_exact_match "$project_root" "$dirs")
-                if [ -n "$exact_match" ]; then
-                    _log "Found exact match: $exact_match"
-                    dir="$exact_match"
-                else
-                    dirs_depth=$(_get_dir_depth "$dirs")
-                    # shallowest directory first
-                    dir_depth=$(echo "$dirs_depth" | sort -n | head -n1)
-                    # discard depth and the space afterwards
-                    dir=${dir_depth#* }
-                fi
+                local dirs_list
+                dirs_list=$(dirs_sort_by_depth "$dirs")
+                _log "Directories sorted by depth"
+
+                exact_match=$(_find_exact_match "$project_root" "$dirs_list")
+                 if [ -n "$exact_match" ]; then
+                     dir="$exact_match"
+                 else
+                     IFS=' ' read -r -a dirs <<< "$dirs_list"
+                     dir=${dirs[0]}
+                     _log "No exact match, taking shortest directory '$dir'"
+                 fi
             else
                 dir=$dirs
             fi
         fi
 
-        _log "Matched directory: $dir"
+        _log "Chaning directory to: $dir"
         if [ -n "$dir" ]; then
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
@@ -83,16 +81,34 @@ function cdp() {
     return 1
 }
 
+function dirs_sort_by_depth() {
+    local dirs="$1"
+
+    local dirs_depth
+    dirs_depth=$(_get_dir_depth "$dirs" | sort -n)
+
+    local dirs_depth_array=()
+    readarray -t dirs_depth_array <<<" $dirs_depth"
+    local dirs_array=()
+    for dir_depth in "${dirs_depth_array[@]}" ; do
+        local dir=${dir_depth#*:}
+        dirs_array+=($dir)
+    done
+    #_log "sorted by depth array: ${dirs_array[@]}"
+    echo "${dirs_array[@]}"
+}
+
 function _get_dir_depth() {
-    local dirs=$1
+    local dirs="$1"
+    local dir
     for dir in $dirs ; do
-        count=$(echo "$dir" | grep -o '/' | wc -l)
-        echo "$count $dir"
+        count="$(echo "$dir" | grep -o '/' | wc -l)"
+        echo "$count:$dir"
     done
     return 0
 }
 
-trim() {
+function trim() {
     local var="$*"
     # remove leading whitespace characters
     var="${var#"${var%%[![:space:]]*}"}"
@@ -136,14 +152,13 @@ function dir_cmp() {
     return 1
 }
 
-function _exact_match() {
+function _find_exact_match() {
     local search_term="$1"
     local matches="$2"
-    local match_list
-    readarray -t match_list <<<" $matches"
 
-    local exact_match=""
+    local match_list
     local dir
+    IFS=' ' read -r -a match_list <<< "$matches"
     for dir in "${match_list[@]}" ; do
         #_log "Checking if $search_term in $dir"
         local short_dir
@@ -154,13 +169,6 @@ function _exact_match() {
             return 0
         fi
     done
-
     echo ""
-
 }
 
-function _log() {
-    if [ "$cdp_log" -eq 1 ]; then
-        >&2 echo "$@"
-    fi
-}
