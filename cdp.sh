@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
 
+if [ -z "$CDP_DIR_SPEC" ]; then
+    echo "CDP_DIR_SPEC environment variable not set"
+fi
+
+if ! command -v fd > /dev/null 2>&1 ; then
+    echo 'cdp requires fd to run, see https://github.com/sharkdp/fd'
+fi
+
+
 function _find_dir() {
     local depth=$1
     local regex=$2
@@ -13,11 +22,12 @@ function _find_dir() {
     if [ -n "$dirs" ]; then
         _log "Found directories: $dirs"
 
+        local num_dirs
         num_dirs=$(echo "$dirs" | wc -l)
         if [ "$num_dirs" -gt "1" ]; then
             local dirs_list
             dirs_list=$(_dirs_sort_by_depth "$dirs")
-            _log "Directories sorted by depth"
+            _log "Directories sorted by depth: $dirs_list"
 
             exact_match=$(_find_exact_match "$project_root" "$dirs_list")
              if [ -n "$exact_match" ]; then
@@ -34,19 +44,8 @@ function _find_dir() {
     echo "$dir"
 }
 
-
 function cdp() {
     local project="$1"
-    local dir=""
-
-    if [ -z "$CDP_DIR_SPEC" ]; then
-        echo "CDP_DIR_SPEC environment variable not set"
-        return 1
-    fi
-
-    if ! command -v fd > /dev/null 2>&1 ; then
-        echo 'cdp requires fd to run, see https://github.com/sharkdp/fd'
-    fi
 
     if [ -z "$project" ]; then
         if [ -n "${!CDP_DEFAULT_VAR}" ]; then
@@ -57,32 +56,36 @@ function cdp() {
         return 1
     fi
 
-    # TODO: Loop through the whole process for each directory hop instead of just
-    # doing it for the first directory, i.e., fuzzy match all the way down
-    local project_root="${project%%/*}"
-
     IFS=';' read -r -a dirspecs <<< "$CDP_DIR_SPEC"
     for dirspec in "${dirspecs[@]}" ; do
         local spec
         IFS=':' read -r -a spec <<< "$dirspec"
-        local path="${spec[0]}"
-        local depth="${spec[1]:-1}"
-        local dirs
-        local num_dirs
+        local dirspec_dir="${spec[0]}"
+        local dirspec_depth="${spec[1]:-1}"
 
-        local dir
-        dir=$(_find_dir "$depth" "^$project_root" "$path")
+        local project_root="${project%%/*}"
 
-        if [ -n "$dir" ]; then
-            _log "Changing directory to: $dir"
-            local subdirs="${project#$project_root/*}"
-            if [ "$project" != "$project_root" ]; then
-                cd "$dir" && cd "$subdirs"
-            else
+        while [ -n "$project_root" ]; do
+            local dir
+            _log "Searching for directory '$project_root' under $dirspec_dir"
+            dir=$(_find_dir "$dirspec_depth" "^$project_root" "$dirspec_dir")
+            if [ -n "$dir" ]; then
+                _log "Changing directory to: $dir"
                 cd "$dir"
+
+                if [ "$project" != "$project_root" ]; then
+                    local subdirs="${project#$project_root/*}"
+                    project="$subdirs"
+                    project_root="${subdirs%%/*}"
+                    dirspec_depth=1
+                    dirspec_dir="$dir"
+                else
+                    return 0
+                fi
+            else
+                break
             fi
-            return 0
-        fi
+        done
     done
 
     echo "No directory found for '$project'"
@@ -102,7 +105,6 @@ function _dirs_sort_by_depth() {
         local dir=${dir_depth#*:}
         dirs_array+=($dir)
     done
-    #_log "sorted by depth array: ${dirs_array[@]}"
     echo "${dirs_array[@]}"
 }
 
@@ -127,7 +129,8 @@ function _trim() {
 
 function _remove_dirspec_dir() {
     local full_path
-    full_path=$(trim "$1") # preceeding space on first directory, wtf
+    #full_path=$(_trim "$1") # preceeding space on first directory, wtf
+    full_path=$1
     local dirspecs
     IFS=';' read -r -a dirspecs <<< "$CDP_DIR_SPEC"
     for dirspec in "${dirspecs[@]}" ; do
@@ -181,9 +184,9 @@ function _find_exact_match() {
 }
 
 function _log() {
-    local cdp_log=1
+    local cdp_log=0
 
     if [ "$cdp_log" -eq 1 ]; then
-        >&2 echo "$@"
+        >&2 echo "$@" | tr '\n' ' '
     fi
 }
