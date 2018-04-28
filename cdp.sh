@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 
-function _log() {
-    local cdp_log=0
-
-    if [ "$cdp_log" -eq 1 ]; then
-        >&2 echo "$@"
-    fi
-}
-
 function cdp() {
     local project="$1"
     local dir=""
@@ -49,7 +41,7 @@ function cdp() {
         if [ -n "$dirs" ]; then
             if [ "$num_dirs" -gt "1" ]; then
                 local dirs_list
-                dirs_list=$(dirs_sort_by_depth "$dirs")
+                dirs_list=$(_dirs_sort_by_depth "$dirs")
                 _log "Directories sorted by depth"
 
                 exact_match=$(_find_exact_match "$project_root" "$dirs_list")
@@ -65,7 +57,7 @@ function cdp() {
             fi
         fi
 
-        _log "Chaning directory to: $dir"
+        _log "Changing directory to: $dir"
         if [ -n "$dir" ]; then
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
@@ -81,7 +73,7 @@ function cdp() {
     return 1
 }
 
-function dirs_sort_by_depth() {
+function _dirs_sort_by_depth() {
     local dirs="$1"
 
     local dirs_depth
@@ -108,7 +100,7 @@ function _get_dir_depth() {
     return 0
 }
 
-function trim() {
+function _trim() {
     local var="$*"
     # remove leading whitespace characters
     var="${var#"${var%%[![:space:]]*}"}"
@@ -117,7 +109,7 @@ function trim() {
     echo -n "$var"
 }
 
-function remove_dir_spec_dir() {
+function _remove_dirspec_dir() {
     local full_path
     full_path=$(trim "$1") # preceeding space on first directory, wtf
     local dirspecs
@@ -134,10 +126,10 @@ function remove_dir_spec_dir() {
         fi
     done
 
-    _log "##BUG## :: Could not find a dir_spec in $full_path"
+    _log "##BUG## :: Could not find a dirspec in $full_path"
 }
 
-function dir_cmp() {
+function _dir_cmp() {
     local path="${1#/}" # remove preceeding slash if there is one
     local search_term="$2"
     local dirs
@@ -162,7 +154,7 @@ function _find_exact_match() {
     for dir in "${match_list[@]}" ; do
         #_log "Checking if $search_term in $dir"
         local short_dir
-        short_dir=$(remove_dir_spec_dir "$dir")
+        short_dir=$(_remove_dirspec_dir "$dir")
         _log "Shortened path to: '$short_dir'"
         if dir_cmp "$short_dir" "$search_term" ; then
             echo "$dir"
@@ -172,3 +164,10 @@ function _find_exact_match() {
     echo ""
 }
 
+function _log() {
+    local cdp_log=0
+
+    if [ "$cdp_log" -eq 1 ]; then
+        >&2 echo "$@"
+    fi
+}
