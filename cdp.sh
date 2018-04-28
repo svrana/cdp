@@ -1,5 +1,40 @@
 #!/usr/bin/env bash
 
+
+function _find_dir() {
+    local depth=$1
+    local regex=$2
+    local path=$3
+
+    local dirs
+    dirs="$(fd -t d --max-depth "$depth" "$regex" "$path")"
+
+    local dir
+    if [ -n "$dirs" ]; then
+        _log "Found directories: $dirs"
+
+        num_dirs=$(echo "$dirs" | wc -l)
+        if [ "$num_dirs" -gt "1" ]; then
+            local dirs_list
+            dirs_list=$(_dirs_sort_by_depth "$dirs")
+            _log "Directories sorted by depth"
+
+            exact_match=$(_find_exact_match "$project_root" "$dirs_list")
+             if [ -n "$exact_match" ]; then
+                 dir="$exact_match"
+             else
+                 IFS=' ' read -r -a dirs <<< "$dirs_list"
+                 dir=${dirs[0]}
+                 _log "No exact match, taking shortest directory '$dir'"
+             fi
+        else
+            dir=$dirs
+        fi
+    fi
+    echo "$dir"
+}
+
+
 function cdp() {
     local project="$1"
     local dir=""
@@ -35,30 +70,11 @@ function cdp() {
         local dirs
         local num_dirs
 
-        dirs="$(fd -t d --max-depth "$depth" "^$project_root" "$path")"
-        _log "Found directories: $dirs"
-        num_dirs=$(echo "$dirs" | wc -l)
-        if [ -n "$dirs" ]; then
-            if [ "$num_dirs" -gt "1" ]; then
-                local dirs_list
-                dirs_list=$(_dirs_sort_by_depth "$dirs")
-                _log "Directories sorted by depth"
+        local dir
+        dir=$(_find_dir "$depth" "^$project_root" "$path")
 
-                exact_match=$(_find_exact_match "$project_root" "$dirs_list")
-                 if [ -n "$exact_match" ]; then
-                     dir="$exact_match"
-                 else
-                     IFS=' ' read -r -a dirs <<< "$dirs_list"
-                     dir=${dirs[0]}
-                     _log "No exact match, taking shortest directory '$dir'"
-                 fi
-            else
-                dir=$dirs
-            fi
-        fi
-
-        _log "Changing directory to: $dir"
         if [ -n "$dir" ]; then
+            _log "Changing directory to: $dir"
             local subdirs="${project#$project_root/*}"
             if [ "$project" != "$project_root" ]; then
                 cd "$dir" && cd "$subdirs"
@@ -165,7 +181,7 @@ function _find_exact_match() {
 }
 
 function _log() {
-    local cdp_log=0
+    local cdp_log=1
 
     if [ "$cdp_log" -eq 1 ]; then
         >&2 echo "$@"
