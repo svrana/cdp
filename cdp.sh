@@ -175,7 +175,7 @@ function _find_exact_match() {
         local short_dir
         short_dir=$(_remove_dirspec_dir "$dir")
         _log "Shortened path to: '$short_dir'"
-        if dir_cmp "$short_dir" "$search_term" ; then
+        if _dir_cmp "$short_dir" "$search_term" ; then
             echo "$dir"
             return 0
         fi
