@@ -50,11 +50,18 @@ function cdp() {
     if [ -z "$project" ]; then
         if [ -n "${!CDP_DEFAULT_VAR}" ]; then
             cd "${!CDP_DEFAULT_VAR}"
+            return
         else
             echo "Must specify directory"
         fi
         return 1
+    elif [ "$project" = '/' ]; then
+        if [ -n "${!CDP_PROJECT_VAR}" ]; then
+            cd "${!CDP_PROJECT_VAR}"
+            return
+        fi
     fi
+
 
     IFS=';' read -r -a dirspecs <<< "$CDP_DIR_SPEC"
     for dirspec in "${dirspecs[@]}" ; do
