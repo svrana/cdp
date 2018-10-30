@@ -60,6 +60,10 @@ function cdp() {
             cd "${!CDP_PROJECT_VAR}"
             return
         fi
+    elif [ "$project" = '.' ]; then
+        # i've done this, think i was looking for '/'... regex doesn't work well
+        # with it so exit out early
+        return
     fi
 
 
